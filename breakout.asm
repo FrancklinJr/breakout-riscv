@@ -285,15 +285,15 @@ bl_testa:
     li   t6, 0
     bgt  s7, t6, bl_empurra_baixo
 
-    li   t5, BLOCO_H
-    add  t5, t4, t5
-    addi t5, t5, 1
+    addi t5, t4, -4
     la   t6, bola_y
     sw   t5, 0(t6)
     j    bl_fim
 
 bl_empurra_baixo:
-    addi t5, t4, -4
+    li   t5, BLOCO_H
+    add  t5, t4, t5
+    addi t5, t5, 1
     la   t6, bola_y
     sw   t5, 0(t6)
     j    bl_fim
