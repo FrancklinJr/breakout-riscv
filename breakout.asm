@@ -20,7 +20,8 @@
 .eqv BLOCO_Y2   15
 
 .data
-paddle_x: .word 54
+display_buffer: .space 65536
+paddle_x: .word 54             
 bola_x:   .word 63
 bola_y:   .word 64
 vel_x:    .word 1
