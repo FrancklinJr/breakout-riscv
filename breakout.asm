@@ -1,37 +1,42 @@
 .eqv BASE_ADDR  0x10010000
 .eqv LARGURA    128
 .eqv ALTURA     128
-
 .eqv KEY_READY  0xFFFF0000
 .eqv KEY_DATA   0xFFFF0004
 .eqv TECLA_A    0x61
 .eqv TECLA_D    0x64
 .eqv TECLA_Q    0x71
-
 .eqv PADDLE_W   20
 .eqv PADDLE_H   2
 .eqv PADDLE_Y   118
-
 .eqv TAM_BOLA   3
-
 .eqv BLOCO_W    13
 .eqv BLOCO_H    5
-.eqv BLOCO_Y1   8   
-.eqv BLOCO_Y2   15  
-.eqv BLOCO_Y3   22  
-.eqv BLOCO_Y4   29   
-.eqv BLOCO_Y5   36   
+.eqv BLOCO_Y1   8
+.eqv BLOCO_Y2   15
+.eqv BLOCO_Y3   22
+.eqv BLOCO_Y4   29
+.eqv BLOCO_Y5   36
+.eqv PONTOS_NORMAL     10
+.eqv PONTOS_RESISTENTE 20
+.eqv TOTAL_BLOCOS      40
 
 .data
 display_buffer: .space 65536
-paddle_x: .word 54
-bola_x:   .word 63
-bola_y:   .word 64
-vel_x:    .word 1
-vel_y:    .word 1
-
+paddle_x:     .word 54
+bola_x:       .word 63
+bola_y:       .word 64
+vel_x:        .word 1
+vel_y:        .word 1
+vidas:        .word 3
+pontos:       .word 0
+blocos_vivos: .word 40
 blocos: .word 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2
-
+str_pontos:   .asciz "Pontuacao: "
+str_vidas:    .asciz " | Vidas: "
+str_vitoria:  .asciz "\n=== VOCE VENCEU! ===\nPontuacao final: "
+str_gameover: .asciz "\n=== GAME OVER ===\nPontuacao final: "
+str_newline:  .asciz "\n"
 
 .text
 .globl main
@@ -41,14 +46,13 @@ main:
     jal  ra, desenha_blocos
     jal  ra, desenha_paddle
     jal  ra, desenha_bola
+    jal  ra, imprime_hud
 
 game_loop:
     jal  ra, ler_teclado
     jal  ra, mover_bola
     jal  ra, delay
     j    game_loop
-
-
 
 delay:
     li   t0, 20000
@@ -57,13 +61,30 @@ delay_loop:
     bne  t0, zero, delay_loop
     ret
 
-
+imprime_hud:
+    li   a7, 4
+    la   a0, str_pontos
+    ecall
+    li   a7, 1
+    la   t0, pontos
+    lw   a0, 0(t0)
+    ecall
+    li   a7, 4
+    la   a0, str_vidas
+    ecall
+    li   a7, 1
+    la   t0, vidas
+    lw   a0, 0(t0)
+    ecall
+    li   a7, 4
+    la   a0, str_newline
+    ecall
+    ret
 
 mover_bola:
     addi sp, sp, -8
     sw   ra, 0(sp)
     sw   s0, 4(sp)
-
     la   t0, bola_x
     lw   a0, 0(t0)
     la   t0, bola_y
@@ -72,30 +93,24 @@ mover_bola:
     li   a3, TAM_BOLA
     li   a4, 0x00000000
     jal  ra, desenha_rect
-
     la   t0, bola_x
     lw   t1, 0(t0)
     la   t2, vel_x
     lw   t3, 0(t2)
     add  t1, t1, t3
     sw   t1, 0(t0)
-
     la   t0, bola_y
     lw   t1, 0(t0)
     la   t2, vel_y
     lw   t3, 0(t2)
     add  t1, t1, t3
     sw   t1, 0(t0)
-
     jal  ra, checa_colisoes
     jal  ra, desenha_bola
-
     lw   ra, 0(sp)
     lw   s0, 4(sp)
     addi sp, sp, 8
     ret
-
-
 
 checa_colisoes:
     addi sp, sp, -36
@@ -108,7 +123,6 @@ checa_colisoes:
     sw   s5, 24(sp)
     sw   s6, 28(sp)
     sw   s7, 32(sp)
-
     la   s0, bola_x
     lw   s1, 0(s0)
     la   s2, bola_y
@@ -150,22 +164,18 @@ col_blocos:
 col_paddle:
     li   t0, 0
     ble  s7, t0, col_fundo
-
     li   t0, TAM_BOLA
     add  t0, s3, t0
     li   t1, PADDLE_Y
     blt  t0, t1, col_fundo
-
     li   t1, PADDLE_Y
     li   t2, PADDLE_H
     add  t1, t1, t2
     bge  s3, t1, col_fundo
-
     la   t2, paddle_x
     lw   t2, 0(t2)
     li   t3, PADDLE_W
     add  t3, t2, t3
-
     li   t4, TAM_BOLA
     add  t4, s1, t4
     ble  t4, t2, col_fundo
@@ -178,7 +188,6 @@ col_paddle:
     sw   s7, 0(s6)
 
     sub  t5, s1, t2
-
     li   t6, 7
     bge  t5, t6, paddle_meio
     li   s5, -1
@@ -186,13 +195,11 @@ col_paddle:
     j    col_fim
 
 paddle_meio:
-
     li   t6, 14
     bge  t5, t6, paddle_direita
     j    col_fim
 
 paddle_direita:
-
     li   s5, 1
     sw   s5, 0(s4)
     j    col_fim
@@ -200,7 +207,6 @@ paddle_direita:
 col_fundo:
     li   t0, 128
     blt  s3, t0, col_fim
-
     mv   a0, s1
     mv   a1, s3
     li   a2, TAM_BOLA
@@ -212,6 +218,21 @@ col_fundo:
     lw   s1, 0(sp)
     addi sp, sp, 4
 
+    la   t0, vidas
+    lw   t1, 0(t0)
+    addi t1, t1, -1
+    sw   t1, 0(t0)
+
+    addi sp, sp, -4
+    sw   s1, 0(sp)
+    jal  ra, imprime_hud
+    lw   s1, 0(sp)
+    addi sp, sp, 4
+
+    la   t0, vidas
+    lw   t1, 0(t0)
+    beq  t1, zero, tela_gameover
+
     li   t1, 63
     sw   t1, 0(s0)
     li   t1, 64
@@ -220,6 +241,27 @@ col_fundo:
     sw   t1, 0(s4)
     li   t1, 1
     sw   t1, 0(s6)
+    j    col_fim
+
+tela_gameover:
+    li   a0, 0
+    li   a1, 0
+    li   a2, LARGURA
+    li   a3, ALTURA
+    li   a4, 0x00AA0000
+    jal  ra, desenha_rect
+    li   a7, 4
+    la   a0, str_gameover
+    ecall
+    li   a7, 1
+    la   t0, pontos
+    lw   a0, 0(t0)
+    ecall
+    li   a7, 4
+    la   a0, str_newline
+    ecall
+    li   a7, 10
+    ecall
 
 col_fim:
     lw   ra,  0(sp)
@@ -234,7 +276,6 @@ col_fim:
     addi sp, sp, 36
     ret
 
-
 checa_colisao_blocos:
     addi sp, sp, -20
     sw   ra,  0(sp)
@@ -242,50 +283,42 @@ checa_colisao_blocos:
     sw   s9,  8(sp)
     sw   s10, 12(sp)
     sw   s11, 16(sp)
-
     la   s8, blocos
     li   s9, 0
-    li   s10, 40            
+    li   s10, TOTAL_BLOCOS
 
 bl_loop:
     bge  s9, s10, bl_fim
-
     slli t0, s9, 2
     add  t0, s8, t0
     lw   t1, 0(t0)
-    beq  t1, zero, bl_prox   
+    beq  t1, zero, bl_prox
 
     li   t2, 8
     rem  t3, s9, t2
     li   t2, 14
     mul  t3, t3, t2
-    addi t3, t3, 4            
+    addi t3, t3, 4
 
     li   t2, 8
-    div  t4, s9, t2          
+    div  t4, s9, t2
     li   t2, 7
-    mul  t4, t4, t2          
-    addi t4, t4, 8            
+    mul  t4, t4, t2
+    addi t4, t4, 8
 
 bl_testa:
-
-
     li   t5, TAM_BOLA
     add  t5, s1, t5
     ble  t5, t3, bl_prox
-
     li   t5, BLOCO_W
     add  t5, t3, t5
     bge  s1, t5, bl_prox
-
     li   t5, TAM_BOLA
     add  t5, s3, t5
     ble  t5, t4, bl_prox
-
     li   t5, BLOCO_H
     add  t5, t4, t5
     bge  s3, t5, bl_prox
-
 
     neg  s7, s7
     la   t0, vel_y
@@ -296,13 +329,13 @@ bl_testa:
 
     slli t0, s9, 2
     add  t0, s8, t0
-    sw   zero, 0(t0)         
+    sw   zero, 0(t0)
 
     addi sp, sp, -16
     sw   s9,  0(sp)
     sw   s1,  4(sp)
     sw   s3,  8(sp)
-    sw   t4, 12(sp)          
+    sw   t4, 12(sp)
     mv   a0, t3
     mv   a1, t4
     li   a2, BLOCO_W
@@ -314,10 +347,62 @@ bl_testa:
     lw   s3,  8(sp)
     lw   t4, 12(sp)
     addi sp, sp, 16
+
+    la   t0, blocos_vivos
+    lw   t5, 0(t0)
+    addi t5, t5, -1
+    sw   t5, 0(t0)
+
+    la   t0, pontos
+    lw   t6, 0(t0)
+    li   t5, 3
+    beq  t1, t5, bl_pts_resist
+    addi t6, t6, PONTOS_NORMAL
+    j    bl_salva_pts
+
+bl_pts_resist:
+    addi t6, t6, PONTOS_RESISTENTE
+
+bl_salva_pts:
+    la   t0, pontos
+    sw   t6, 0(t0)
+
+    addi sp, sp, -12
+    sw   s9, 0(sp)
+    sw   s1, 4(sp)
+    sw   s3, 8(sp)
+    jal  ra, imprime_hud
+    lw   s9, 0(sp)
+    lw   s1, 4(sp)
+    lw   s3, 8(sp)
+    addi sp, sp, 12
+
+    la   t0, blocos_vivos
+    lw   t5, 0(t0)
+    beq  t5, zero, bl_vitoria
     j    bl_empurra
 
-bl_danifica:
+bl_vitoria:
+    li   a0, 0
+    li   a1, 0
+    li   a2, LARGURA
+    li   a3, ALTURA
+    li   a4, 0x0000AA00
+    jal  ra, desenha_rect
+    li   a7, 4
+    la   a0, str_vitoria
+    ecall
+    li   a7, 1
+    la   t0, pontos
+    lw   a0, 0(t0)
+    ecall
+    li   a7, 4
+    la   a0, str_newline
+    ecall
+    li   a7, 10
+    ecall
 
+bl_danifica:
     slli t0, s9, 2
     add  t0, s8, t0
     li   t6, 3
@@ -332,26 +417,24 @@ bl_danifica:
     mv   a1, t4
     li   a2, BLOCO_W
     li   a3, BLOCO_H
-    li   a4, 0x00884400       
+    li   a4, 0x00884400
     jal  ra, desenha_rect
     lw   s9,  0(sp)
     lw   s1,  4(sp)
     lw   s3,  8(sp)
     lw   t4, 12(sp)
     addi sp, sp, 16
+    j    bl_empurra
 
 bl_empurra:
-
     li   t6, 0
     bgt  s7, t6, bl_empurra_baixo
-
     addi t5, t4, -4
     la   t6, bola_y
     sw   t5, 0(t6)
     j    bl_fim
 
 bl_empurra_baixo:
-
     li   t5, BLOCO_H
     add  t5, t4, t5
     addi t5, t5, 1
@@ -372,11 +455,9 @@ bl_fim:
     addi sp, sp, 20
     ret
 
-
 desenha_bola:
     addi sp, sp, -4
     sw   ra, 0(sp)
-
     la   a0, bola_x
     lw   a0, 0(a0)
     la   a1, bola_y
@@ -385,11 +466,9 @@ desenha_bola:
     li   a3, TAM_BOLA
     li   a4, 0x00FF0000
     jal  ra, desenha_rect
-
     lw   ra, 0(sp)
     addi sp, sp, 4
     ret
-
 
 limpar_tela:
     li   t0, BASE_ADDR
@@ -397,17 +476,13 @@ limpar_tela:
     mul  t1, t1, t1
     slli t1, t1, 2
     add  t1, t0, t1
-
 lt_loop:
     bge  t0, t1, lt_fim
     sw   zero, 0(t0)
     addi t0, t0, 4
     j    lt_loop
-
 lt_fim:
     ret
-
-
 
 desenha_rect:
     addi sp, sp, -28
@@ -418,34 +493,27 @@ desenha_rect:
     sw   s3, 16(sp)
     sw   s4, 20(sp)
     sw   s5, 24(sp)
-
     mv   s0, a0
     mv   s1, a1
     mv   s2, a2
     mv   s3, a3
     mv   s4, a4
     li   s5, 0
-
 dr_outer:
     bge  s5, s3, dr_fim
-
     add  t0, s1, s5
     li   t1, 0
     blt  t0, t1, dr_next
     li   t1, 128
     bge  t0, t1, dr_next
-
     li   t6, 0
-
 dr_inner:
     bge  t6, s2, dr_next
-
     add  t2, s0, t6
     li   t3, 0
     blt  t2, t3, dr_skip
     li   t3, 128
     bge  t2, t3, dr_skip
-
     add  t0, s1, s5
     li   t1, 128
     mul  t0, t0, t1
@@ -455,15 +523,12 @@ dr_inner:
     li   t1, BASE_ADDR
     add  t0, t0, t1
     sw   s4, 0(t0)
-
 dr_skip:
     addi t6, t6, 1
     j    dr_inner
-
 dr_next:
     addi s5, s5, 1
     j    dr_outer
-
 dr_fim:
     lw   ra,  0(sp)
     lw   s0,  4(sp)
@@ -475,13 +540,11 @@ dr_fim:
     addi sp, sp, 28
     ret
 
-
 desenha_blocos:
     addi sp, sp, -12
     sw   ra, 0(sp)
     sw   s6, 4(sp)
     sw   s7, 8(sp)
-
     li   s7, 8
 
     li   s6, 0
@@ -498,8 +561,7 @@ db_f1:
     addi s6, s6, 1
     j    db_f1
 
-db_f2_init:
-    li   s6, 0
+db_f2_init: li s6, 0
 db_f2:
     bge  s6, s7, db_f3_init
     li   t1, 14
@@ -513,8 +575,7 @@ db_f2:
     addi s6, s6, 1
     j    db_f2
 
-db_f3_init:
-    li   s6, 0
+db_f3_init: li s6, 0
 db_f3:
     bge  s6, s7, db_f4_init
     li   t1, 14
@@ -523,13 +584,12 @@ db_f3:
     li   a1, BLOCO_Y3
     li   a2, BLOCO_W
     li   a3, BLOCO_H
-    li   a4, 0x00FF8800      
+    li   a4, 0x00FF8800
     jal  ra, desenha_rect
     addi s6, s6, 1
     j    db_f3
 
-db_f4_init:
-    li   s6, 0
+db_f4_init: li s6, 0
 db_f4:
     bge  s6, s7, db_f5_init
     li   t1, 14
@@ -538,13 +598,12 @@ db_f4:
     li   a1, BLOCO_Y4
     li   a2, BLOCO_W
     li   a3, BLOCO_H
-    li   a4, 0x0022CC44      
+    li   a4, 0x0022CC44
     jal  ra, desenha_rect
     addi s6, s6, 1
     j    db_f4
 
-db_f5_init:
-    li   s6, 0
+db_f5_init: li s6, 0
 db_f5:
     bge  s6, s7, db_fim
     li   t1, 14
@@ -553,7 +612,7 @@ db_f5:
     li   a1, BLOCO_Y5
     li   a2, BLOCO_W
     li   a3, BLOCO_H
-    li   a4, 0x00FF8800      
+    li   a4, 0x00FF8800
     jal  ra, desenha_rect
     addi s6, s6, 1
     j    db_f5
@@ -565,18 +624,15 @@ db_fim:
     addi sp, sp, 12
     ret
 
-
 desenha_paddle:
     addi sp, sp, -4
     sw   ra, 0(sp)
-
     li   a0, 0
     li   a1, PADDLE_Y
     li   a2, LARGURA
     li   a3, PADDLE_H
     li   a4, 0x00000000
     jal  ra, desenha_rect
-
     la   t0, paddle_x
     lw   a0, 0(t0)
     li   a1, PADDLE_Y
@@ -584,56 +640,44 @@ desenha_paddle:
     li   a3, PADDLE_H
     li   a4, 0x00FFFFFF
     jal  ra, desenha_rect
-
     lw   ra, 0(sp)
     addi sp, sp, 4
     ret
 
-
 ler_teclado:
     addi sp, sp, -4
     sw   ra, 0(sp)
-
     li   t0, KEY_READY
     lw   t1, 0(t0)
     andi t1, t1, 1
     beq  t1, zero, lt_fim2
-
     li   t0, KEY_DATA
     lw   t2, 0(t0)
-
     la   t3, paddle_x
     lw   t4, 0(t3)
-
     li   t5, TECLA_A
     bne  t2, t5, lt_d
-
     addi t4, t4, -3
     li   t5, 0
     bge  t4, t5, lt_salva
     li   t4, 0
     j    lt_salva
-
 lt_d:
     li   t5, TECLA_D
     bne  t2, t5, lt_q
-
     addi t4, t4, 3
     li   t5, 108
     ble  t4, t5, lt_salva
     li   t4, 108
     j    lt_salva
-
 lt_q:
     li   t5, TECLA_Q
     bne  t2, t5, lt_fim2
     li   a7, 10
     ecall
-
 lt_salva:
     sw   t4, 0(t3)
     jal  ra, desenha_paddle
-
 lt_fim2:
     lw   ra, 0(sp)
     addi sp, sp, 4
